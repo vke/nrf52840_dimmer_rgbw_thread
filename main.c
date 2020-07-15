@@ -88,10 +88,10 @@ static nrf_drv_pwm_t m_led_pwm = DIMMER_PWM_INSTANCE;
 static nrf_pwm_values_individual_t m_led_values;
 static nrf_pwm_sequence_t const m_led_seq =
 {
-		.values.p_individual = &m_led_values,
-		.length = NRF_PWM_VALUES_LENGTH(m_led_values),
-		.repeats = 0,
-		.end_delay = 0
+	.values.p_individual = &m_led_values,
+	.length = NRF_PWM_VALUES_LENGTH(m_led_values),
+	.repeats = 0,
+	.end_delay = 0
 };
 
 int32_t dc_voltage_12 = 0;
@@ -304,7 +304,7 @@ static void timer_init(void)
 	uint32_t error_code = app_timer_init();
 	APP_ERROR_CHECK(error_code);
 
-	// Battery timer
+	// Voltage timer
 	error_code = app_timer_create(&m_voltage_timer_id, APP_TIMER_MODE_REPEATED, voltage_timeout_handler);
 	APP_ERROR_CHECK(error_code);
 
