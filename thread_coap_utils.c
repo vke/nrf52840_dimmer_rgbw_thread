@@ -1059,10 +1059,10 @@ void thread_coap_utils_init()
 	error_code = app_timer_start(m_subscription_timer, APP_TIMER_TICKS(SUBSCRIPTION_TIMER_INTERVAL), NULL);
 	APP_ERROR_CHECK(error_code);
 
-	error_code = app_timer_create(&m_led_recv_timer, APP_TIMER_MODE_SINGLE_SHOT, bsp_send_led_timer_handler);
+	error_code = app_timer_create(&m_led_recv_timer, APP_TIMER_MODE_SINGLE_SHOT, bsp_recv_led_timer_handler);
 	APP_ERROR_CHECK(error_code);
 
-	error_code = app_timer_create(&m_led_send_timer, APP_TIMER_MODE_SINGLE_SHOT, bsp_recv_led_timer_handler);
+	error_code = app_timer_create(&m_led_send_timer, APP_TIMER_MODE_SINGLE_SHOT, bsp_send_led_timer_handler);
 	APP_ERROR_CHECK(error_code);
 
 	error_code = app_timer_create(&m_boot_timer, APP_TIMER_MODE_SINGLE_SHOT, boot_timer_handler);
