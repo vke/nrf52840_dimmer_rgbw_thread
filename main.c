@@ -72,14 +72,14 @@ APP_TIMER_DEF(m_internal_temperature_timer_id);
 void pwm_set_brightness(char sensor_name, int64_t sensor_value);
 
 sensor_subscription sensor_subscriptions[] = {
-	{ .sensor_name = 'r', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
-	{ .sensor_name = 'g', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
-	{ .sensor_name = 'b', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
-	{ .sensor_name = 'w', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
-	{ .sensor_name = 'v', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
-	{ .sensor_name = 'V', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
-	{ .sensor_name = 't', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
-	{ .sensor_name = SENSOR_SUBSCRIPTION_NAME_LAST, .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
+	{ .sensor_name = 'r', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
+	{ .sensor_name = 'g', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
+	{ .sensor_name = 'b', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
+	{ .sensor_name = 'w', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = false, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = pwm_set_brightness, },
+	{ .sensor_name = 'v', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
+	{ .sensor_name = 'V', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
+	{ .sensor_name = 't', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
+	{ .sensor_name = SENSOR_SUBSCRIPTION_NAME_LAST, .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
 };
 
 static nrf_saadc_value_t adc_buf[ADC_CHANNELS * ADC_SAMPLES_PER_CHANNEL];
@@ -348,6 +348,11 @@ int main(int argc, char * argv[])
 
 	err_code = app_timer_start(m_internal_temperature_timer_id, APP_TIMER_TICKS(INTERNAL_TEMPERATURE_TIMER_INTERVAL), NULL);
 	APP_ERROR_CHECK(err_code);
+
+	set_sensor_value('r', 0, true);
+	set_sensor_value('g', 0, true);
+	set_sensor_value('b', 0, true);
+	set_sensor_value('w', DIMMER_PWM_VALUE_MAX, true);
 
 	while (true) {
 		thread_process();

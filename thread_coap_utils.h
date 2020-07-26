@@ -58,6 +58,7 @@ typedef struct sensor_subscription
 	int64_t reportable_change;
 	bool read_only;
 	bool disable_reporting;
+	bool initialized;
 	sensor_set_value_handler_t set_value_handler;
 	uint32_t report_interval;
 	uint32_t last_sent_at;

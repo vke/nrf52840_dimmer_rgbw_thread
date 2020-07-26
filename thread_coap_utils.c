@@ -124,6 +124,7 @@ bool set_sensor_value(char sensor_name, int64_t sensor_value, bool external_requ
 {
 	for (int i = 0; sensor_subscriptions[i].sensor_name != SENSOR_SUBSCRIPTION_NAME_LAST; i++) {
 		if (sensor_subscriptions[i].sensor_name == sensor_name) {
+			sensor_subscriptions[i].initialized = true;
 			if (external_request) {
 				sensor_subscriptions[i].sent_value = sensor_value;
 				sensor_subscriptions[i].current_value = sensor_value;
@@ -142,6 +143,8 @@ bool get_sensor_value(char sensor_name, int64_t *p_sensor_value)
 {
 	for (int i = 0; sensor_subscriptions[i].sensor_name != SENSOR_SUBSCRIPTION_NAME_LAST; i++) {
 		if (sensor_subscriptions[i].sensor_name == sensor_name) {
+			if (sensor_subscriptions[i].initialized == false)
+				return false;
 			*p_sensor_value = sensor_subscriptions[i].current_value;
 			return true;
 		}
@@ -266,6 +269,23 @@ size_t fill_info_packet(uint8_t *pBuffer, size_t stBufferSize)
 		return 0;
 
 	cborError = cbor_encode_map_set_stringz(&encoderMap, "v", INFO_FIRMWARE_VERSION);
+	if (cborError != CborNoError)
+		return 0;
+
+	uint8_t macAddr[8];
+	otPlatRadioGetIeeeEui64(thread_ot_instance_get(), macAddr);
+
+	cborError = cbor_encode_text_stringz(&encoderMap, "m");
+	if (cborError != CborNoError)
+		return 0;
+	cborError = cbor_encode_byte_string(&encoderMap, macAddr, sizeof(macAddr));
+	if (cborError != CborNoError)
+		return 0;
+
+	cborError = cbor_encode_text_stringz(&encoderMap, "e");
+	if (cborError != CborNoError)
+		return 0;
+	cborError = cbor_encode_byte_string(&encoderMap, (const uint8_t *)otLinkGetExtendedAddress(thread_ot_instance_get()), sizeof(otExtAddress));
 	if (cborError != CborNoError)
 		return 0;
 
@@ -908,6 +928,9 @@ size_t fill_subscriptions_packet(uint32_t time_now, uint8_t *pBuffer, size_t stB
 
 	for (int i = 0; sensor_subscriptions[i].sensor_name != SENSOR_SUBSCRIPTION_NAME_LAST; i++) {
 		if (sensor_subscriptions[i].disable_reporting)
+			continue;
+
+		if (sensor_subscriptions[i].initialized == false)
 			continue;
 
 		bool add = false;
