@@ -125,7 +125,7 @@
     <folder Name="nRF_Thread" />
     <configuration
       Name="Debug"
-      debug_additional_load_file="C:/zsdk41/components/softdevice/mbr/hex/mbr_nrf52_2.4.1_mbr.hex" />
+      debug_additional_load_file="$(PATH_TO_SDK)/components/softdevice/mbr/hex/mbr_nrf52_2.4.1_mbr.hex" />
     <folder Name="tinycbor">
       <file file_name="../../../tinycbor/cbor.h" />
       <file file_name="../../../tinycbor/cborencoder.c" />
