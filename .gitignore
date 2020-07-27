@@ -1,3 +1,5 @@
 *.code-workspace
 .vscode/*
 efekta_mini_dev_board/s140/ses/Output/*
+*.jlink
+*.emSession
