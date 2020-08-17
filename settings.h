@@ -8,6 +8,11 @@
 #define INTERNAL_TEMPERATURE_TIMER_INTERVAL  1000
 #define VOLTAGE_TIMER_INTERVAL               1000
 
+#define DEFAULT_POLL_PERIOD                  120000
+#define DEFAULT_POLL_PERIOD_FAST             50
+#define DEFAULT_POLL_PERIOD_FAST_TIMEOUT     500
+#define DEFAULT_CHILD_TIMEOUT                240
+
 #define ADC_SAMPLES_PER_CHANNEL              32
 
 #define LED_SEND_NOTIFICATION                BSP_BOARD_LED_0

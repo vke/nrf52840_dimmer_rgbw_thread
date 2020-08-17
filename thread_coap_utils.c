@@ -55,10 +55,12 @@
 #include <openthread/thread.h>
 #include <openthread/icmp6.h>
 #include <openthread/platform/alarm-milli.h>
+#include <openthread/platform/misc.h>
 
 APP_TIMER_DEF(m_led_send_timer);
 APP_TIMER_DEF(m_led_recv_timer);
 APP_TIMER_DEF(m_boot_timer);
+APP_TIMER_DEF(m_poll_period_fast_timer);
 
 static otIcmp6Handler m_icmp6_handler;
 
@@ -96,7 +98,7 @@ static void icmp_receive_callback(void                * p_context,
 	}
 }
 
-static uint32_t m_poll_period;
+static uint32_t m_poll_period = 0;
 
 static void boot_request_handler(void *, otMessage *, const otMessageInfo *);
 static void info_request_handler(void *, otMessage *, const otMessageInfo *);
@@ -170,6 +172,63 @@ int16_t get_sensor_index(char sensor_name)
 		}
 	}
 	return -1;
+}
+
+static uint32_t poll_period_fast_set(void)
+{
+	uint32_t     error;
+	otError      ot_error;
+	otInstance * p_instance = thread_ot_instance_get();
+
+	do {
+		if (otThreadGetLinkMode(p_instance).mRxOnWhenIdle) {
+			error = NRF_ERROR_INVALID_STATE;
+			break;
+		}
+
+		if (!m_poll_period) {
+			m_poll_period = otLinkGetPollPeriod(p_instance);
+
+			ot_error = otLinkSetPollPeriod(p_instance, DEFAULT_POLL_PERIOD_FAST);
+			ASSERT(ot_error == OT_ERROR_NONE);
+
+			error = NRF_SUCCESS;
+
+			app_timer_start(m_poll_period_fast_timer, APP_TIMER_TICKS(DEFAULT_POLL_PERIOD_FAST_TIMEOUT), NULL);
+		} else {
+			error = NRF_ERROR_BUSY;
+		}
+	} while (false);
+
+	return error;
+}
+
+static void poll_period_restore(void)
+{
+	otError      error;
+	otInstance * p_instance = thread_ot_instance_get();
+
+	do {
+		if (otThreadGetLinkMode(p_instance).mRxOnWhenIdle) {
+			break;
+		}
+
+		if (m_poll_period) {
+			error = otLinkSetPollPeriod(p_instance, m_poll_period);
+			ASSERT(error == OT_ERROR_NONE);
+
+			m_poll_period = 0;
+
+			app_timer_stop(m_poll_period_fast_timer);
+		}
+	} while (false);
+}
+
+static void poll_period_fast_timer_handler(void * p_context)
+{
+	UNUSED_PARAMETER(p_context);
+
+	poll_period_restore();
 }
 
 static void coap_default_handler(void * p_context, otMessage * p_message, const otMessageInfo * p_message_info)
@@ -269,6 +328,10 @@ size_t fill_info_packet(uint8_t *pBuffer, size_t stBufferSize)
 		return 0;
 
 	cborError = cbor_encode_map_set_stringz(&encoderMap, "v", INFO_FIRMWARE_VERSION);
+	if (cborError != CborNoError)
+		return 0;
+
+	cborError = cbor_encode_map_set_int(&encoderMap, "r", otPlatGetResetReason(thread_ot_instance_get()));
 	if (cborError != CborNoError)
 		return 0;
 
@@ -509,8 +572,7 @@ static otError get_response_send(otMessage *p_request_message, const otMessageIn
 	otMessage *p_response;
 	otInstance *p_instance = thread_ot_instance_get();
 
-	do
-	{
+	do {
 		p_response = otCoapNewMessage(p_instance, NULL);
 		if (p_response == NULL)
 			break;
@@ -545,8 +607,7 @@ static otError get_response_send(otMessage *p_request_message, const otMessageIn
 
 static void get_request_handler(void *p_context, otMessage *p_message, const otMessageInfo *p_message_info)
 {
-	do
-	{
+	do {
 		if (otCoapMessageGetType(p_message) != OT_COAP_TYPE_CONFIRMABLE)
 			break;
 
@@ -856,6 +917,14 @@ static void sub_request_handler(void * p_context, otMessage * p_message, const o
 	blink_recv_led();
 }
 
+static void subscription_response_handler(void                * p_context,
+										  otMessage           * p_message,
+										  const otMessageInfo * p_message_info,
+										  otError               result)
+{
+	poll_period_restore();
+}
+
 static void send_subscription_broadcast()
 {
 	otError       error = OT_ERROR_NONE;
@@ -863,8 +932,7 @@ static void send_subscription_broadcast()
 	otMessageInfo message_info;
 	otInstance  * p_instance = thread_ot_instance_get();
 
-	do
-	{
+	do {
 		p_request = otCoapNewMessage(p_instance, NULL);
 		if (p_request == NULL)
 			break;
@@ -900,9 +968,11 @@ static void send_subscription_broadcast()
 		if (error != OT_ERROR_NONE)
 			break;
 
-		error = otCoapSendRequest(p_instance, p_request, &message_info, NULL, NULL);
+		error = otCoapSendRequest(p_instance, p_request, &message_info, subscription_response_handler, p_instance);
 		if (error != OT_ERROR_NONE)
 			break;
+
+		poll_period_fast_set();
 
 		blink_send_led();
 	} while (false);
@@ -1003,8 +1073,7 @@ static void subscription_timeout_handler(void *p_context)
 	otMessageInfo message_info;
 	otInstance  * p_instance = thread_ot_instance_get();
 
-	do
-	{
+	do {
 		p_request = otCoapNewMessage(p_instance, NULL);
 		if (p_request == NULL)
 			break;
@@ -1089,6 +1158,9 @@ void thread_coap_utils_init()
 	APP_ERROR_CHECK(error_code);
 
 	error_code = app_timer_create(&m_boot_timer, APP_TIMER_MODE_SINGLE_SHOT, boot_timer_handler);
+	APP_ERROR_CHECK(error_code);
+
+	error_code = app_timer_create(&m_poll_period_fast_timer, APP_TIMER_MODE_SINGLE_SHOT, poll_period_fast_timer_handler);
 	APP_ERROR_CHECK(error_code);
 
 	memset(&m_icmp6_handler, 0, sizeof(m_icmp6_handler));
