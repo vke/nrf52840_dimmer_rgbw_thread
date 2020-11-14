@@ -347,30 +347,40 @@ static void thread_state_changed_callback(uint32_t flags, void * p_context)
 		switch (device_role) {
 			case OT_DEVICE_ROLE_CHILD:
 				szRole = "OT_DEVICE_ROLE_CHILD";
+#ifndef DISABLE_OT_ROLE_LIGHTS
 				bsp_board_led_on(LED_CHILD_ROLE);
 				bsp_board_led_off(LED_ROUTER_ROLE);
+#endif // DISABLE_OT_ROLE_LIGHTS
 				break;
 			case OT_DEVICE_ROLE_ROUTER:
 				szRole = "OT_DEVICE_ROLE_ROUTER";
+#ifndef DISABLE_OT_ROLE_LIGHTS
 				bsp_board_led_on(LED_ROUTER_ROLE);
 				bsp_board_led_off(LED_CHILD_ROLE);
+#endif // DISABLE_OT_ROLE_LIGHTS
 				break;
 			case OT_DEVICE_ROLE_LEADER:
 				szRole = "OT_DEVICE_ROLE_LEADER";
+#ifndef DISABLE_OT_ROLE_LIGHTS
 				bsp_board_led_on(LED_CHILD_ROLE);
 				bsp_board_led_on(LED_ROUTER_ROLE);
+#endif // DISABLE_OT_ROLE_LIGHTS
 				break;
 
 			case OT_DEVICE_ROLE_DISABLED:
 				szRole = "OT_DEVICE_ROLE_DISABLED";
+#ifndef DISABLE_OT_ROLE_LIGHTS
 				bsp_board_led_off(LED_ROUTER_ROLE);
 				bsp_board_led_off(LED_CHILD_ROLE);
+#endif // DISABLE_OT_ROLE_LIGHTS
 				break;
 
 			case OT_DEVICE_ROLE_DETACHED:
 				szRole = "OT_DEVICE_ROLE_DETACHED";
+#ifndef DISABLE_OT_ROLE_LIGHTS
 				bsp_board_led_off(LED_ROUTER_ROLE);
 				bsp_board_led_off(LED_CHILD_ROLE);
+#endif // DISABLE_OT_ROLE_LIGHTS
 				break;
 			default:
 				break;

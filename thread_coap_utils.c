@@ -306,8 +306,6 @@ static void boot_request_handler(void * p_context, otMessage * p_message, const 
 
 		ret_code_t err_code = app_timer_start(m_boot_timer, APP_TIMER_TICKS(1000), NULL);
 	}
-
-	blink_recv_led();
 }
 
 size_t fill_info_packet(uint8_t *pBuffer, size_t stBufferSize)
@@ -441,8 +439,6 @@ static void info_request_handler(void * p_context, otMessage * p_message, const 
 		if (error == OT_ERROR_NONE) {
 		}
 	}
-
-	blink_recv_led();
 }
 
 static void set_response_send(otMessage * p_request_message, const otMessageInfo * p_message_info, const uint8_t *p_buff, size_t buff_size)
@@ -562,8 +558,6 @@ static void set_request_handler(void * p_context, otMessage * p_message, const o
 		}
 	}
 	while (false);
-
-	blink_recv_led();
 }
 
 static otError get_response_send(otMessage *p_request_message, const otMessageInfo *p_message_info, const uint8_t *p_buff, size_t buff_size)
@@ -677,8 +671,6 @@ static void get_request_handler(void *p_context, otMessage *p_message, const otM
 			get_response_send(p_message, p_message_info, buff_resp, buff_size);
 		}
 	} while (false);
-
-	blink_recv_led();
 }
 
 static void sub_response_send(otMessage * p_request_message, const otMessageInfo * p_message_info, const uint8_t *p_buff, size_t buff_size)
@@ -913,8 +905,6 @@ static void sub_request_handler(void * p_context, otMessage * p_message, const o
 			set_response_send(p_message, p_message_info, buff_response, response_size);
 	}
 	while (false);
-
-	blink_recv_led();
 }
 
 static void subscription_response_handler(void                * p_context,
@@ -973,8 +963,6 @@ static void send_subscription_broadcast()
 			break;
 
 		poll_period_fast_set();
-
-		blink_send_led();
 	} while (false);
 
 	if (error != OT_ERROR_NONE && p_request != NULL)
@@ -1107,12 +1095,19 @@ static void subscription_timeout_handler(void *p_context)
 		error = otCoapSendRequest(p_instance, p_request, &message_info, NULL, NULL);
 		if (error != OT_ERROR_NONE)
 			break;
-		
-		blink_send_led();
 	} while (false);
 
 	if (error != OT_ERROR_NONE && p_request != NULL)
 		otMessageFree(p_request);
+}
+
+void link_pcap_callback(const otRadioFrame *aFrame, bool aIsTx, void *aContext)
+{
+	if (aIsTx) {
+		blink_send_led();
+	} else {
+		blink_recv_led();
+	}
 }
 
 void thread_coap_utils_init()
@@ -1168,4 +1163,8 @@ void thread_coap_utils_init()
 
 	error = otIcmp6RegisterHandler(thread_ot_instance_get(), &m_icmp6_handler);
 	ASSERT((error == OT_ERROR_NONE) || (error == OT_ERROR_ALREADY));
+
+#ifndef DISABLE_OT_TRAFFIC_LIGHTS
+	otLinkSetPcapCallback(thread_ot_instance_get(), link_pcap_callback, NULL);
+#endif // DISABLE_OT_TRAFFIC_LIGHTS
 }

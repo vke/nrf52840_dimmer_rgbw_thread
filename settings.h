@@ -2,7 +2,7 @@
 #define __SETTINGS__H__
 
 #define INFO_FIRMWARE_TYPE                   "dimmer"
-#define INFO_FIRMWARE_VERSION                "1.1.0"
+#define INFO_FIRMWARE_VERSION                "1.1.1"
 
 #define SUBSCRIPTION_TIMER_INTERVAL          500
 #define INTERNAL_TEMPERATURE_TIMER_INTERVAL  1000
@@ -19,6 +19,9 @@
 #define LED_RECV_NOTIFICATION                BSP_BOARD_LED_1
 #define LED_ROUTER_ROLE                      BSP_BOARD_LED_2
 #define LED_CHILD_ROLE                       BSP_BOARD_LED_3
+
+// #define DISABLE_OT_ROLE_LIGHTS               1
+// #define DISABLE_OT_TRAFFIC_LIGHTS            1
 
 #define DIMMER_CHANNEL_PIN_R                 LED2_DR // pwm channel 0
 #define DIMMER_CHANNEL_PIN_G                 LED2_DG // pwm channel 1
