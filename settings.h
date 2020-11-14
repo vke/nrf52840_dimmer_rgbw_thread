@@ -2,7 +2,7 @@
 #define __SETTINGS__H__
 
 #define INFO_FIRMWARE_TYPE                   "dimmer"
-#define INFO_FIRMWARE_VERSION                "1.0.0"
+#define INFO_FIRMWARE_VERSION                "1.1.0"
 
 #define SUBSCRIPTION_TIMER_INTERVAL          500
 #define INTERNAL_TEMPERATURE_TIMER_INTERVAL  1000
@@ -25,5 +25,9 @@
 #define DIMMER_CHANNEL_PIN_B                 LED2_DB // pwm channel 2
 #define DIMMER_CHANNEL_PIN_W                 LED2_DW // pwm channel 3
 #define DIMMER_PWM_INVERSION                 0 // NRF_DRV_PWM_PIN_INVERTED
+
+#define DIMMER_PSU_ENABLE_PIN                PSU_ENABLE_PIN
+#define DIMMER_PSU_ON_TIMEOUT                1000 // milliseconds before enabling pwm after powering up psu
+#define DIMMER_PSU_OFF_TIMEOUT               10000 // milliseconds before powering off psu after disabling pwm
 
 #endif // __SETTINGS__H__

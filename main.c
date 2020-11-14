@@ -68,6 +68,7 @@
 
 APP_TIMER_DEF(m_voltage_timer_id);
 APP_TIMER_DEF(m_internal_temperature_timer_id);
+APP_TIMER_DEF(m_psu_control_timer_id);
 
 void pwm_set_brightness(char sensor_name, int64_t sensor_value);
 
@@ -79,6 +80,7 @@ sensor_subscription sensor_subscriptions[] = {
 	{ .sensor_name = 'v', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
 	{ .sensor_name = 'V', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
 	{ .sensor_name = 't', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
+	{ .sensor_name = 'p', .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
 	{ .sensor_name = SENSOR_SUBSCRIPTION_NAME_LAST, .sent_value = 0, .current_value = 0, .reportable_change = 0, .disable_reporting = true, .read_only = true, .initialized = false, .report_interval = 10000, .last_sent_at = 0, .set_value_handler = NULL, },
 };
 
@@ -93,6 +95,13 @@ static nrf_pwm_sequence_t const m_led_seq =
 	.repeats = 0,
 	.end_delay = 0
 };
+
+bool psu_is_powered_on = false;
+bool psu_pwm_is_enabled = false;
+uint32_t psu_power_on_time = 0;
+bool psu_pending_shutdown = false;
+uint32_t psu_pending_shutdown_start_time = 0;
+static uint16_t m_led_values_pending[4];
 
 int32_t internal_temp_prev = 0x7FFFFFFF;
 
@@ -210,10 +219,61 @@ static void internal_temperature_timeout_handler(void *p_context)
 	}
 }
 
+static void psu_control_timer_handler(void *p_context)
+{
+	UNUSED_PARAMETER(p_context);
+
+	bool pending_channels_off = true;
+	for (int i = 0; i < 4; i++) {
+		if (m_led_values_pending[i]) {
+			pending_channels_off = false;
+			break;
+		}
+	}
+
+	uint32_t now_time = otPlatAlarmMilliGetNow();
+
+	if (psu_is_powered_on) {
+		if ((!psu_pwm_is_enabled) && (now_time - psu_power_on_time > DIMMER_PSU_ON_TIMEOUT)) {
+			psu_pwm_is_enabled = true;
+		}
+
+		if (psu_pwm_is_enabled) {
+			uint16_t *p_channels = (uint16_t *)&m_led_values;
+			for (int i = 0; i < 4; i++) {
+				p_channels[i] = DIMMER_PWM_VALUE_MAX - m_led_values_pending[i];
+			}
+		}
+
+		if (pending_channels_off) {
+			if (!psu_pending_shutdown) {
+				psu_pending_shutdown = true;
+				psu_pending_shutdown_start_time = now_time;
+			}
+			if (now_time - psu_pending_shutdown_start_time > DIMMER_PSU_OFF_TIMEOUT) {
+				psu_is_powered_on = false;
+				psu_pending_shutdown = false;
+				psu_pwm_is_enabled = false;
+
+				nrf_gpio_pin_clear(DIMMER_PSU_ENABLE_PIN);
+
+				set_sensor_value('p', 0, false);
+			}
+		} else {
+			psu_pending_shutdown = false;
+		}
+	} else if (!pending_channels_off) {
+		psu_is_powered_on = true;
+		psu_power_on_time = otPlatAlarmMilliGetNow();
+
+		nrf_gpio_pin_set(DIMMER_PSU_ENABLE_PIN);
+
+		set_sensor_value('p', 1, false);
+	}
+}
+
 void pwm_set_brightness(char sensor_name, int64_t sensor_value)
 {
-	uint16_t *p_channels = (uint16_t *)&m_led_values;
-
 	if (sensor_value < 0)
 		sensor_value = 0;
 	if (sensor_value > DIMMER_PWM_VALUE_MAX)
@@ -229,7 +289,7 @@ void pwm_set_brightness(char sensor_name, int64_t sensor_value)
 			return;
 	}
 
-	p_channels[channel] = DIMMER_PWM_VALUE_MAX - (uint16_t)sensor_value;
+	m_led_values_pending[channel] = (uint16_t)sensor_value;
 }
 
 static void pwm_init()
@@ -251,12 +311,15 @@ static void pwm_init()
 			.step_mode = NRF_PWM_STEP_AUTO
 		};
 
-	uint16_t *p_channels = (uint16_t *)&m_led_values;
+	m_led_values.channel_0 = DIMMER_PWM_VALUE_MAX;
+	m_led_values.channel_1 = DIMMER_PWM_VALUE_MAX;
+	m_led_values.channel_2 = DIMMER_PWM_VALUE_MAX;
+	m_led_values.channel_3 = DIMMER_PWM_VALUE_MAX;
 
-	p_channels[0] = DIMMER_PWM_VALUE_MAX;
-	p_channels[1] = DIMMER_PWM_VALUE_MAX;
-	p_channels[2] = DIMMER_PWM_VALUE_MAX;
-	p_channels[3] = DIMMER_PWM_VALUE_MAX;
+	m_led_values_pending[0] = 0;
+	m_led_values_pending[1] = 0;
+	m_led_values_pending[2] = 0;
+	m_led_values_pending[3] = 0;
 
 	ret_code_t err_code = nrf_drv_pwm_init(&m_led_pwm, &led_pwm_config, NULL);
 	APP_ERROR_CHECK(err_code);
@@ -336,6 +399,10 @@ static void timer_init(void)
 	// Internal temperature timer
 	error_code = app_timer_create(&m_internal_temperature_timer_id, APP_TIMER_MODE_REPEATED, internal_temperature_timeout_handler);
 	APP_ERROR_CHECK(error_code);
+
+	// PSU on/off control timer
+	error_code = app_timer_create(&m_psu_control_timer_id, APP_TIMER_MODE_REPEATED, psu_control_timer_handler);
+	APP_ERROR_CHECK(error_code);
 }
 
 static void thread_instance_init(void)
@@ -377,7 +444,13 @@ int main(int argc, char * argv[])
 	set_sensor_value('r', 0, true);
 	set_sensor_value('g', 0, true);
 	set_sensor_value('b', 0, true);
-	set_sensor_value('w', DIMMER_PWM_VALUE_MAX, true);
+	set_sensor_value('w', 0, true);
+
+	nrf_gpio_cfg_output(DIMMER_PSU_ENABLE_PIN);
+	nrf_gpio_pin_clear(DIMMER_PSU_ENABLE_PIN);
+
+	err_code = app_timer_start(m_psu_control_timer_id, APP_TIMER_TICKS(50), NULL);
+	APP_ERROR_CHECK(err_code);
 
 	while (true) {
 		thread_process();
